@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Always reserve space for the scrollbar so pages with short content
+       don't shift ~15px to the right when switching to pages with long
+       content. Prevents a subtle horizontal jump between routes. */
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply font-sans text-hp-ink bg-white;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+/* Page-transition fade.
+   Paired with a `key={pathname}` on <main> in App.jsx so the element
+   re-mounts on every route change and replays this animation. Keeps the
+   navigation feeling intentional instead of a harsh instant swap. */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-fade {
+  animation: page-fade-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-fade { animation: none; }
+}
+
+/* Wishlist heart pop — replayed on each add/remove click by toggling the
+   class on the heart icon. The overshoot + return feels tactile and
+   matches the bounce on modern storefronts (Amazon, Flipkart, Ajio). */
+@keyframes heart-pop {
+  0%   { transform: scale(1);    }
+  25%  { transform: scale(1.35); }
+  55%  { transform: scale(0.9);  }
+  80%  { transform: scale(1.1);  }
+  100% { transform: scale(1);    }
+}
+.animate-heart-pop { animation: heart-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Subtle pulse shown while the heart is in the "wishlisted" state — a
+   gentle heartbeat, fires once on mount then idles. */
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+.animate-heart-beat { animation: heart-beat 600ms ease-in-out; }
+
+/* Wishlist card collapse — used on the Wishlist page when the user clicks
+   the remove icon. The card shrinks + fades before the server-side delete
+   fires, so the disappearance feels smooth instead of the row snapping
+   out of existence. */
+.wishlist-card {
+  transition: opacity 280ms ease-out, transform 280ms ease-out, max-height 320ms ease-out, margin 320ms ease-out;
+  max-height: 520px;
+}
+.wishlist-card.is-removing {
+  opacity: 0;
+  transform: scale(0.94) translateY(-6px);
+  max-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-heart-pop, .animate-heart-beat { animation: none; }
+  .wishlist-card { transition: none; }
+}
+
+@layer components {
+  .hero-gradient {
+    background:
+      radial-gradient(1000px 500px at 80% -10%, rgba(0, 150, 214, 0.35), transparent 60%),
+      radial-gradient(700px 400px at 10% 110%, rgba(0, 32, 91, 0.55), transparent 60%),
+      linear-gradient(120deg, #00205b 0%, #002f5f 45%, #003e78 100%);
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .btn-primary {
+    @apply bg-hp-blue text-white font-semibold transition;
+  }
+  .btn-primary:hover {
+    background: #007db3;
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .icon-tile {
+    background: linear-gradient(180deg, #f3f8fc 0%, #e8f2fa 100%);
+  }
+  .noise {
+    position: relative;
+  }
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.35'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: 0.25;
+    pointer-events: none;
+  }
+  .product-card {
+    @apply transition;
+  }
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px rgba(0, 47, 95, 0.14);
+  }
+  .pulse-dot {
+    position: relative;
+  }
+  .pulse-dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: #10b981;
+    animation: pulseDot 1.8s ease-out infinite;
+    opacity: 0.6;
+  }
+  .bubble {
+    background: #0b1221;
+    color: #fff;
+    border-radius: 12px;
+    min-width: 58px;
+    padding: 10px 8px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .cat-bar {
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .cat-card:hover .cat-bar {
+    width: 100%;
+  }
+}
