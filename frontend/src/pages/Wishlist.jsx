@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, HeartOff, MessageCircle, Package, Loader2 } from 'lucide-react';
 import { useWishlist, useRemoveFromWishlist } from '../hooks/queries.js';
 import { useUserStore } from '../store/userStore.js';
-import { buildEnquiryUrl } from '../config/contact.js';
+import { useEnquiry } from '../context/EnquiryContext.jsx';
 
 export default function Wishlist() {
   const navigate = useNavigate();
@@ -65,6 +65,7 @@ function WishlistCard({ product }) {
   const id  = product._id || product.id;
   const img = (product.images || []).find(Boolean) || product.imageUrl || '';
   const remove = useRemoveFromWishlist();
+  const { openEnquiry } = useEnquiry();
 
   const [isRemoving, setIsRemoving] = useState(false);
   const busy = isRemoving || remove.isPending;
@@ -108,14 +109,13 @@ function WishlistCard({ product }) {
           ) : null}
         </div>
         <div className="mt-auto pt-4 flex items-center gap-2">
-          <a
-            href={buildEnquiryUrl(product)}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => openEnquiry({ kind: 'product', product })}
             className="btn-primary flex-1 py-2 rounded-full text-xs inline-flex items-center justify-center gap-1.5"
           >
             <MessageCircle className="w-3.5 h-3.5" /> Enquire
-          </a>
+          </button>
           <button
             onClick={handleRemove}
             disabled={busy}

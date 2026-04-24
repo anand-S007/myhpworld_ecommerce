@@ -10,6 +10,9 @@ import Footer          from './components/layout/Footer.jsx';
 import ScrollToTop     from './components/layout/ScrollToTop.jsx';
 import FaviconManager  from './components/layout/FaviconManager.jsx';
 import VisitTracker    from './components/layout/VisitTracker.jsx';
+import ContactSync     from './components/layout/ContactSync.jsx';
+import WhatsAppFab     from './components/common/WhatsAppFab.jsx';
+import { EnquiryProvider } from './context/EnquiryContext.jsx';
 import AdminRoute      from './components/admin/AdminRoute.jsx';
 import AdminLayout     from './components/admin/AdminLayout.jsx';
 
@@ -68,13 +71,17 @@ function ClientLayout() {
         </Suspense>
       </main>
       <Footer />
+      {/* Floating WhatsApp FAB — visible only on customer routes. Hidden
+          from admin because `AdminLayout` is rendered by a sibling route
+          that doesn't include this layout. */}
+      <WhatsAppFab />
     </>
   );
 }
 
 export default function App() {
   return (
-    <>
+    <EnquiryProvider>
       {/* Resets window scroll on every route change so new pages start at
           the top instead of inheriting the scroll offset of the previous one. */}
       <ScrollToTop />
@@ -82,6 +89,8 @@ export default function App() {
       <FaviconManager />
       {/* Logs every customer-side route change for the admin dashboard. */}
       <VisitTracker />
+      {/* Keeps the WhatsApp-helper module in sync with admin-edited settings. */}
+      <ContactSync />
       <Routes>
         {/* ── Admin routes ─────────────────────────────────────────────────
             Grouped under a single layout route so the sidebar + header stay
@@ -121,6 +130,6 @@ export default function App() {
           <Route path="*"                 element={<NotFound />} />
         </Route>
       </Routes>
-    </>
+    </EnquiryProvider>
   );
 }

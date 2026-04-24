@@ -1,7 +1,40 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon, Upload, Save, Loader2, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Image as ImageIcon, Upload, Save, Loader2, Trash2, CheckCircle2, AlertCircle, Phone, MessageCircle, Mail, Share2, Plus } from 'lucide-react';
 import { useAdminSettings, useUpdateSettings } from '../../hooks/queries.js';
 import { adminUploadImage } from '../../services/api.js';
+
+// Platforms the footer has built-in icons for. "custom" renders a generic
+// link icon in the footer and lets the admin type a free-form label that
+// becomes the tooltip / aria-label.
+const PLATFORM_OPTIONS = [
+  { value: 'facebook',  label: 'Facebook' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'twitter',   label: 'Twitter / X' },
+  { value: 'linkedin',  label: 'LinkedIn' },
+  { value: 'youtube',   label: 'YouTube' },
+  { value: 'whatsapp',  label: 'WhatsApp' },
+  { value: 'telegram',  label: 'Telegram' },
+  { value: 'custom',    label: 'Custom link' },
+];
+
+// Normalise whatever came back from the API — accept array (new shape),
+// legacy object shape, or absent — into the always-array shape the form
+// expects.
+function toSocialsArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((s) => ({
+      platform: String(s?.platform || 'custom').toLowerCase(),
+      label:    String(s?.label    || ''),
+      url:      String(s?.url      || ''),
+    }));
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, v]) => typeof v === 'string' && v.trim())
+      .map(([platform, url]) => ({ platform, label: '', url }));
+  }
+  return [];
+}
 
 // AdminBranding — site-wide logo / brand name / tagline settings. Everything
 // shown by the shared <Logo> component (Navbar, Footer, admin sidebar) reads
@@ -10,7 +43,11 @@ import { adminUploadImage } from '../../services/api.js';
 export default function AdminBranding() {
   const { data, isLoading } = useAdminSettings();
   const save = useUpdateSettings();
-  const [form, setForm]       = useState({ logoUrl: '', faviconUrl: '', brandName: '', tagline: '' });
+  const [form, setForm]       = useState({
+    logoUrl: '', faviconUrl: '', brandName: '', tagline: '',
+    phone: '', whatsappNumber: '', email: '',
+    socials: [],
+  });
   const [uploading, setUploading] = useState(false);
   const [faviconUploading, setFaviconUploading] = useState(false);
   const [err, setErr]         = useState('');
@@ -22,15 +59,35 @@ export default function AdminBranding() {
   useEffect(() => {
     if (!isLoading && data) {
       setForm({
-        logoUrl:    data.logoUrl    || '',
-        faviconUrl: data.faviconUrl || '',
-        brandName:  data.brandName  || '',
-        tagline:    data.tagline    || '',
+        logoUrl:        data.logoUrl        || '',
+        faviconUrl:     data.faviconUrl     || '',
+        brandName:      data.brandName      || '',
+        tagline:        data.tagline        || '',
+        phone:          data.phone          || '',
+        whatsappNumber: data.whatsappNumber || '',
+        email:          data.email          || '',
+        socials:        toSocialsArray(data.socials),
       });
     }
   }, [data, isLoading]);
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Socials row editors — keep the list as an array so admins can add any
+  // number of accounts across platforms we do / don't have built-in icons
+  // for. Empty rows are stripped on save.
+  const updateSocialRow = (i, patch) =>
+    setForm((f) => ({
+      ...f,
+      socials: f.socials.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
+    }));
+  const addSocialRow = () =>
+    setForm((f) => ({
+      ...f,
+      socials: [...f.socials, { platform: 'facebook', label: '', url: '' }],
+    }));
+  const removeSocialRow = (i) =>
+    setForm((f) => ({ ...f, socials: f.socials.filter((_, idx) => idx !== i) }));
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -263,6 +320,133 @@ export default function AdminBranding() {
                   className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm"
                 />
               </label>
+            </div>
+
+            {/* ── Contact ──────────────────────────────────────────────── */}
+            <div className="pt-4 border-t border-slate-100 space-y-4">
+              <h2 className="font-semibold text-hp-ink">Contact details</h2>
+
+              <label className="block text-sm">
+                <span className="text-slate-600 mb-1 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-hp-blue" /> Phone (shown in navbar + footer)
+                </span>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={(e) => setField('phone', e.target.value)}
+                  placeholder="+91 99461 26608"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm"
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Free-form — the top navbar renders this as-is. The <code>tel:</code> link auto-strips spaces.
+                </span>
+              </label>
+
+              <label className="block text-sm">
+                <span className="text-slate-600 mb-1 flex items-center gap-1.5">
+                  <MessageCircle className="w-3.5 h-3.5 text-hp-blue" /> WhatsApp number (digits only)
+                </span>
+                <input
+                  type="text"
+                  value={form.whatsappNumber}
+                  onChange={(e) => setField('whatsappNumber', e.target.value.replace(/\D/g, ''))}
+                  placeholder="919946126608"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm font-mono"
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  International format, no + or spaces (e.g. <code>919946126608</code>). Powers every "Enquire on WhatsApp" / "Book a store visit" button on the site.
+                </span>
+              </label>
+
+              <label className="block text-sm">
+                <span className="text-slate-600 mb-1 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-hp-blue" /> Email
+                </span>
+                <input
+                  type="text"
+                  value={form.email}
+                  onChange={(e) => setField('email', e.target.value)}
+                  placeholder="hello@myhpworld.com"
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm"
+                />
+              </label>
+            </div>
+
+            {/* ── Social accounts ─────────────────────────────────────── */}
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-hp-ink flex items-center gap-1.5">
+                  <Share2 className="w-4 h-4 text-hp-blue" /> Social accounts
+                </h2>
+                <button
+                  type="button"
+                  onClick={addSocialRow}
+                  className="inline-flex items-center gap-1 text-xs text-hp-blue hover:underline font-semibold"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add account
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Add any number of accounts. Pick "Custom link" for platforms without a built-in icon —
+                it renders a generic link glyph on the footer with the label you set as the tooltip.
+              </p>
+
+              {form.socials.length === 0 && (
+                <div className="text-xs text-slate-400 px-3 py-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 text-center">
+                  No social accounts yet. Click "Add account" to add one.
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {form.socials.map((row, i) => {
+                  const isCustom = row.platform === 'custom';
+                  return (
+                    <div
+                      key={i}
+                      className="grid grid-cols-[160px_1fr_auto] gap-2 items-start"
+                    >
+                      <select
+                        value={row.platform}
+                        onChange={(e) => updateSocialRow(i, { platform: e.target.value })}
+                        className="h-10 px-3 rounded-lg border border-slate-200 bg-white focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm"
+                      >
+                        {PLATFORM_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={row.url}
+                          onChange={(e) => updateSocialRow(i, { url: e.target.value })}
+                          placeholder="https://…"
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-sm"
+                        />
+                        {isCustom && (
+                          <input
+                            type="text"
+                            value={row.label || ''}
+                            onChange={(e) => updateSocialRow(i, { label: e.target.value })}
+                            placeholder="Label (e.g. Pinterest)"
+                            className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:border-hp-blue focus:ring-4 focus:ring-hp-blue/10 outline-none text-xs"
+                          />
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeSocialRow(i)}
+                        className="w-10 h-10 rounded-lg grid place-items-center text-slate-400 hover:text-accent-red hover:bg-red-50"
+                        title="Remove this account"
+                        aria-label="Remove social account"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <button

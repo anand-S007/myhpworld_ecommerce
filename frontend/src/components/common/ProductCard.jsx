@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Laptop } from 'lucide-react';
-import { buildEnquiryUrl } from '../../config/contact.js';
 import { useCategoryIconMap } from '../../lib/useCategoryIconMap.js';
 import { useUserStore } from '../../store/userStore.js';
 import { useWishlist, useAddToWishlist, useRemoveFromWishlist } from '../../hooks/queries.js';
+import { useEnquiry } from '../../context/EnquiryContext.jsx';
 
 const badgeStyles = {
   BESTSELLER: 'bg-accent-red text-white',
@@ -51,11 +51,12 @@ export default function ProductCard({ product }) {
     product.imageUrl ||
     '';
 
+  const { openEnquiry } = useEnquiry();
   const handleEnquire = (e) => {
     // Card is wrapped in a <Link>, so stop the click from navigating to the detail page.
     e.preventDefault();
     e.stopPropagation();
-    window.open(buildEnquiryUrl(product), '_blank', 'noopener,noreferrer');
+    openEnquiry({ kind: 'product', product });
   };
 
   return (

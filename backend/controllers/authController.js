@@ -6,16 +6,25 @@ const { requireVerification } = require('./otpController');
 
 // POST /api/users/register
 // Requires:
-//   name, email, phone, password, phoneVerificationToken
-// The phoneVerificationToken is obtained by completing OTP verification on
-// /api/auth/otp/verify with channel='phone', purpose='signup'. The phone on
+//   name, email, phone, password, emailVerificationToken
+// The emailVerificationToken is obtained by completing OTP verification on
+// /api/auth/otp/verify with channel='email', purpose='signup'. The email on
 // the request must match the identifier embedded in that token.
+//
+// (Legacy callers may still send `phoneVerificationToken`; we also accept
+// that and verify against the phone channel so older signup attempts don't
+// break during the cutover.)
 async function register(req, res) {
-  const { name, email, phone, password, phoneVerificationToken } = req.body;
+  const {
+    name, email, phone, password,
+    emailVerificationToken,
+    phoneVerificationToken, // legacy
+  } = req.body;
   if (!name || !email || !phone || !password) {
     return res.status(400).json({ message: 'Name, email, phone and password are required.' });
   }
   if (!isEmail(email)) return res.status(400).json({ message: 'Invalid email address.' });
+  const canonicalEmail = String(email).toLowerCase().trim();
   const normalizedPhone = normalizePhoneIN(phone);
   if (!normalizedPhone) return res.status(400).json({ message: 'Invalid Indian phone number.' });
   if (!isStrongPassword(password)) {
@@ -24,28 +33,40 @@ async function register(req, res) {
     });
   }
 
-  // Confirm OTP verification completed for THIS phone number.
+  // Prefer the email-based OTP. If the caller hasn't verified via email,
+  // accept a legacy phone verification token for backward compatibility.
   try {
-    requireVerification(phoneVerificationToken, {
-      expectedIdentifier: normalizedPhone,
-      expectedPurpose: 'signup',
-      expectedChannel: 'phone',
-    });
+    if (emailVerificationToken) {
+      requireVerification(emailVerificationToken, {
+        expectedIdentifier: canonicalEmail,
+        expectedPurpose: 'signup',
+        expectedChannel: 'email',
+      });
+    } else if (phoneVerificationToken) {
+      requireVerification(phoneVerificationToken, {
+        expectedIdentifier: normalizedPhone,
+        expectedPurpose: 'signup',
+        expectedChannel: 'phone',
+      });
+    } else {
+      return res.status(400).json({ message: 'Verification token missing.' });
+    }
   } catch (e) {
     return res.status(e.status || 400).json({ message: e.message });
   }
 
-  const emailExists = await User.findOne({ email: email.toLowerCase() });
+  const emailExists = await User.findOne({ email: canonicalEmail });
   if (emailExists) return res.status(409).json({ message: 'Email already registered.' });
   const phoneExists = await User.findOne({ phone: normalizedPhone });
   if (phoneExists) return res.status(409).json({ message: 'Phone already registered.' });
 
   const user = await User.create({
     name,
-    email,
+    email: canonicalEmail,
     phone: normalizedPhone,
     password,
-    mobileVerified: true,  // OTP just proved possession of the phone
+    // Signup now proves possession of the email, not the phone. `mobileVerified`
+    // stays false until a future flow re-introduces phone verification.
   });
   const token = signUserToken({ id: user._id });
   res.status(201).json({ user: user.toSafeJSON(), token });

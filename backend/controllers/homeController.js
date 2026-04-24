@@ -68,11 +68,29 @@ async function getDealOfTheDay(req, res) {
 
 // GET /api/settings — branding (logo, name, tagline). Upserts a default
 // row on first read so the frontend always has something to render.
+//
+// Normalises legacy docs where `socials` was saved as an object into the
+// new array shape so every consumer can assume array semantics.
+function coerceSocials(doc) {
+  if (!doc) return doc;
+  const obj = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  const s = obj.socials;
+  if (Array.isArray(s)) return obj;
+  if (s && typeof s === 'object') {
+    obj.socials = Object.entries(s)
+      .filter(([, v]) => typeof v === 'string' && v.trim())
+      .map(([platform, url]) => ({ platform, label: '', url: String(url).trim() }));
+  } else {
+    obj.socials = [];
+  }
+  return obj;
+}
+
 async function getSettings(req, res) {
   const existing = await Setting.findOne({ key: 'branding' });
-  if (existing) return res.json(existing);
+  if (existing) return res.json(coerceSocials(existing));
   const created = await Setting.create({ key: 'branding' });
-  res.json(created);
+  res.json(coerceSocials(created));
 }
 
 module.exports = {

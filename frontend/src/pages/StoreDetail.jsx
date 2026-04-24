@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useStoreBySlug } from '../hooks/queries.js';
 import { formatHours, storeStatus } from '../lib/storeHours.js';
-import { buildAppointmentUrl } from '../config/contact.js';
+import { useEnquiry } from '../context/EnquiryContext.jsx';
 
 // Payment options — same at every HP World store, so rendered statically.
 const PAYMENT_OPTIONS = ['Debit Card', 'Credit Card', 'UPI', 'NEFT / IMPS', 'Cash', 'EMI'];
@@ -24,6 +24,7 @@ const BADGE_STYLES = {
 export default function StoreDetail() {
   const { slug } = useParams();
   const { data, isLoading, isError } = useStoreBySlug(slug);
+  const { openEnquiry } = useEnquiry();
 
   // Tick every minute so the OPEN/CLOSED badge flips without a refresh.
   const [now, setNow] = useState(() => new Date());
@@ -322,15 +323,14 @@ export default function StoreDetail() {
               </p>
             </div>
 
-            <a
-              href={buildAppointmentUrl(store)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openEnquiry({ kind: 'appointment', store })}
               className="inline-flex items-center gap-2 bg-[#25D366] text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-[#1EBE5A] transition-colors self-start md:self-auto whitespace-nowrap"
               aria-label={`Book a store visit to ${store.name} on WhatsApp`}
             >
               <MessageCircle className="w-5 h-5" /> Book on WhatsApp
-            </a>
+            </button>
           </div>
         </div>
       </section>

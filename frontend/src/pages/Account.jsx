@@ -75,17 +75,27 @@ export default function Account() {
               <LayoutDashboard className="w-4 h-4" /> Open admin panel
             </Link>
           )}
+          <Link
+            to="/wishlist"
+            className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-sm"
+          >
+            <Heart className="w-4 h-4 text-hp-blue" /> Wishlist
+          </Link>
           {[
             { icon: Package, label: 'Orders' },
-            { icon: Heart, label: 'Wishlist' },
             { icon: MapPin, label: 'Addresses' },
             { icon: User, label: 'Profile' },
           ].map(({ icon: Icon, label }) => (
             <button
               key={label}
-              className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-sm"
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="Coming soon"
+              className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-400 cursor-not-allowed"
             >
-              <Icon className="w-4 h-4 text-hp-blue" /> {label}
+              <Icon className="w-4 h-4 text-slate-300" /> {label}
+              <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-400">Soon</span>
             </button>
           ))}
           <button

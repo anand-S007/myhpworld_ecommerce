@@ -6,21 +6,21 @@ import { isEmail, normalizePhoneIN, passwordIssue } from '../lib/validators.js';
 import { useResendTimer } from '../lib/useResendTimer.js';
 import { useUserStore } from '../store/userStore.js';
 
-// Registration is a three-step flow so the user can't create an account
-// against a phone number they don't actually own:
-//   1. Enter phone  → server sends a 6-digit OTP (dev: logged to console).
+// Registration is a three-step flow so the account can't be created with
+// an email the user doesn't actually control:
+//   1. Enter email  → server sends a 6-digit OTP via SMTP.
 //   2. Enter the code → server returns a short-lived verification token.
-//   3. Fill the remaining details → server accepts the signup only when the
-//      verification token matches the phone on the request.
+//   3. Fill the remaining details (name, phone, password) → server accepts
+//      the signup only when the verification token matches the email.
 export default function Register() {
   const [step, setStep]       = useState(1);
-  const [phone, setPhone]     = useState('');
+  const [email, setEmail]     = useState('');
   const [otp, setOtp]         = useState('');
   const [verifyToken, setVerifyToken] = useState('');
-  const [form, setForm]       = useState({ name: '', email: '', password: '' });
+  const [form, setForm]       = useState({ name: '', phone: '', password: '' });
   const [err, setErr]         = useState('');
   // Server-returned dev code. Shown inline in development so you can
-  // complete the flow without an SMS provider. Undefined in production.
+  // complete the flow without real SMTP delivery. Undefined in production.
   const [devCode, setDevCode] = useState('');
   const navigate = useNavigate();
 
@@ -29,11 +29,12 @@ export default function Register() {
   const register    = useRegister();
   const userLogin   = useUserStore((s) => s.login);
   // Countdown for the Resend OTP button — locked for 30 seconds after a
-  // successful send so admins / customers don't spam our provider.
+  // successful send so the user can't spam our SMTP provider.
   const resendTimer = useResendTimer(30);
 
-  // Canonicalise as the user types — we validate against the 10-digit form.
-  const normalizedPhone = normalizePhoneIN(phone);
+  // Canonicalise for the API — backend lowercases + trims, the client
+  // pre-trims so the UI shows the clean value back.
+  const canonicalEmail = email.trim().toLowerCase();
 
   // Step 1 (and resend) → request OTP. Resetting `otp` when we re-request
   // makes sure the user types the latest code; the server upserts the OTP
@@ -42,11 +43,14 @@ export default function Register() {
   const requestOtp = async (e) => {
     e?.preventDefault?.();
     setErr('');
-    if (!normalizedPhone) { setErr('Enter a valid 10-digit Indian mobile number.'); return; }
+    if (!isEmail(canonicalEmail)) {
+      setErr('Enter a valid email address.');
+      return;
+    }
     try {
       const res = await sendOtp.mutateAsync({
-        channel: 'phone',
-        identifier: normalizedPhone,
+        channel: 'email',
+        identifier: canonicalEmail,
         purpose: 'signup',
       });
       setDevCode(res.devCode || '');
@@ -65,8 +69,8 @@ export default function Register() {
     if (!/^\d{6}$/.test(otp)) { setErr('Enter the 6-digit code.'); return; }
     try {
       const res = await verifyOtpMu.mutateAsync({
-        channel: 'phone',
-        identifier: normalizedPhone,
+        channel: 'email',
+        identifier: canonicalEmail,
         purpose: 'signup',
         code: otp,
       });
@@ -81,15 +85,18 @@ export default function Register() {
   const createAccount = async (e) => {
     e.preventDefault();
     setErr('');
-    if (!form.name.trim())          { setErr('Please enter your name.'); return; }
-    if (!isEmail(form.email))       { setErr('Enter a valid email address.'); return; }
+    if (!form.name.trim())              { setErr('Please enter your name.'); return; }
+    const normalizedPhone = normalizePhoneIN(form.phone);
+    if (!normalizedPhone)               { setErr('Enter a valid 10-digit Indian mobile number.'); return; }
     const pIssue = passwordIssue(form.password);
-    if (pIssue)                     { setErr(`Weak password — ${pIssue}`); return; }
+    if (pIssue)                         { setErr(`Weak password — ${pIssue}`); return; }
     try {
       const data = await register.mutateAsync({
-        ...form,
+        name: form.name.trim(),
+        email: canonicalEmail,
         phone: normalizedPhone,
-        phoneVerificationToken: verifyToken,
+        password: form.password,
+        emailVerificationToken: verifyToken,
       });
       if (!data.user) {
         setErr('Account created but the server returned no profile — please sign in.');
@@ -114,12 +121,12 @@ export default function Register() {
         {step === 1 && (
           <form onSubmit={requestOtp} className="mt-6 space-y-4">
             <Input
-              label="Mobile number"
-              type="tel"
-              value={phone}
-              onChange={setPhone}
-              placeholder="10-digit number starting with 6/7/8/9"
-              autoComplete="tel"
+              label="Email address"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              placeholder="you@example.com"
+              autoComplete="email"
             />
             {err && <Inline err={err} />}
             <button type="submit" disabled={sendOtp.isPending}
@@ -133,13 +140,13 @@ export default function Register() {
         {step === 2 && (
           <form onSubmit={confirmOtp} className="mt-6 space-y-4">
             <div className="text-sm text-slate-500">
-              We sent a 6-digit code to <span className="font-semibold text-hp-ink">+91 {normalizedPhone}</span>.
+              We sent a 6-digit code to <span className="font-semibold text-hp-ink break-all">{canonicalEmail}</span>.
               {' '}
-              <button type="button" onClick={() => { setStep(1); setOtp(''); }} className="text-hp-blue hover:underline">Change number</button>
+              <button type="button" onClick={() => { setStep(1); setOtp(''); }} className="text-hp-blue hover:underline">Change email</button>
             </div>
             {devCode && (
               <div className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg px-3 py-2">
-                <strong>Dev mode:</strong> your code is <span className="font-mono">{devCode}</span>. In production this is sent via SMS.
+                <strong>Dev mode:</strong> your code is <span className="font-mono">{devCode}</span>. In production this is only sent via email.
               </div>
             )}
             <Input
@@ -174,10 +181,13 @@ export default function Register() {
         {step === 3 && (
           <form onSubmit={createAccount} className="mt-6 space-y-4">
             <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-2">
-              <Check className="w-4 h-4" /> Phone <span className="font-mono">+91 {normalizedPhone}</span> verified.
+              <Check className="w-4 h-4" /> Email <span className="font-mono break-all">{canonicalEmail}</span> verified.
             </div>
             <Input label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-            <Input label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+            <Input label="Mobile number" type="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })}
+              placeholder="10-digit number starting with 6/7/8/9"
+              autoComplete="tel"
+            />
             <Input label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })}
               hint="Min 6 characters · include a letter, a number and a special character."
             />
@@ -202,7 +212,7 @@ export default function Register() {
 function Stepper({ step }) {
   return (
     <div className="flex items-center gap-2 mt-5 text-[11px] uppercase tracking-widest">
-      {['Phone', 'Verify', 'Details'].map((label, i) => {
+      {['Email', 'Verify', 'Details'].map((label, i) => {
         const n = i + 1;
         const done = step > n;
         const active = step === n;

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Flame, Star, StarHalf, MessageCircle, Laptop } from 'lucide-react';
 import CountdownTimer from '../common/CountdownTimer.jsx';
 import { useDealOfTheDay } from '../../hooks/queries.js';
-import { buildEnquiryUrl } from '../../config/contact.js';
+import { useEnquiry } from '../../context/EnquiryContext.jsx';
 
 // Count-aware grid class so cards always fill the row.
 //   2 deals → 2 columns (each card takes half the row, no empty third slot)
@@ -71,6 +71,7 @@ export default function DealOfTheDay() {
 function DealHeroCard({ deal }) {
   const p   = deal.product || {};
   const img = (p.images || []).find(Boolean) || p.imageUrl;
+  const { openEnquiry } = useEnquiry();
   // Rating + review count come from the Product's aggregate (updated by
   // the Review model), not the deal form.
   const rating  = p.rating  || 0;
@@ -112,14 +113,13 @@ function DealHeroCard({ deal }) {
         )}
         {deal.perks && <p className="text-white/70 mt-4 max-w-md">{deal.perks}</p>}
         <div className="mt-6 flex flex-wrap gap-3">
-          <a
-            href={buildEnquiryUrl(p._id ? p : { ...p, name: deal.name })}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openEnquiry({ kind: 'product', product: p._id ? p : { ...p, name: deal.name } })}
             className="btn-primary px-6 py-3 rounded-full inline-flex items-center gap-2"
           >
             <MessageCircle className="w-4 h-4" /> Enquire on WhatsApp
-          </a>
+          </button>
           {p._id && (
             <Link
               to={`/product/${p._id}`}
@@ -138,6 +138,7 @@ function DealHeroCard({ deal }) {
 function DealCompactCard({ deal }) {
   const p   = deal.product || {};
   const img = (p.images || []).find(Boolean) || p.imageUrl;
+  const { openEnquiry } = useEnquiry();
 
   return (
     <div className="bg-gradient-to-br from-white/5 to-white/0 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
@@ -166,14 +167,13 @@ function DealCompactCard({ deal }) {
           </div>
         )}
         <div className="mt-auto pt-4 flex items-center gap-2">
-          <a
-            href={buildEnquiryUrl(p._id ? p : { ...p, name: deal.name })}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openEnquiry({ kind: 'product', product: p._id ? p : { ...p, name: deal.name } })}
             className="btn-primary flex-1 py-2 rounded-full text-xs inline-flex items-center justify-center gap-1.5"
           >
             <MessageCircle className="w-3.5 h-3.5" /> Enquire
-          </a>
+          </button>
           {p._id && (
             <Link
               to={`/product/${p._id}`}

@@ -9,6 +9,7 @@ import {
   useDeleteProduct,
   useAdminCategories,
 } from '../../hooks/queries.js';
+import { SPEC_TEMPLATES } from '../../config/specTemplates.js';
 
 // Empty product — rating/reviews are deliberately omitted from the form;
 // they're aggregated from customer reviews submitted on the detail page.
@@ -47,19 +48,6 @@ const SORT_OPTIONS = [
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-
-// Standard spec keys per category. Picking a category pre-fills these rows
-// with empty values so the admin only types the value column. Any missing
-// key is appended — keys the admin has already filled are preserved.
-const SPEC_TEMPLATES = {
-  laptops:       ['Processor', 'RAM', 'Storage', 'Graphics', 'Screen', 'Operating System', 'Battery', 'Weight', 'Ports', 'Warranty'],
-  desktops:      ['Processor', 'RAM', 'Storage', 'Graphics', 'Display', 'Operating System', 'Ports', 'Warranty'],
-  printers:      ['Type', 'Print Speed', 'Print Resolution', 'Connectivity', 'Paper Size', 'Duplex', 'Warranty'],
-  monitors:      ['Screen Size', 'Resolution', 'Panel Type', 'Refresh Rate', 'Response Time', 'Ports', 'Warranty'],
-  gaming:        ['Processor', 'RAM', 'Storage', 'Graphics', 'Screen', 'Cooling', 'Keyboard', 'Operating System', 'Warranty'],
-  accessories:   ['Type', 'Compatibility', 'Connectivity', 'Warranty'],
-  'ink-toner':   ['Type', 'Compatible Printers', 'Yield (Pages)', 'Color', 'Warranty'],
-};
 
 // Merge a category's template into the existing rows: appends any standard
 // key that isn't already present (case-insensitive match). Rows the admin

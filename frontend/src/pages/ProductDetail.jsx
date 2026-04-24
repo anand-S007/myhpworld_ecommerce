@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Star, MessageCircle, Heart, Store, ShieldCheck, BadgeCheck, Laptop, Trash2, Loader2 } from 'lucide-react';
 import { useProduct, useProductReviews, useSubmitReview, useDeleteReview, useWishlist, useAddToWishlist, useRemoveFromWishlist } from '../hooks/queries.js';
 import { FEATURED } from '../data/mockData.js';
-import { buildEnquiryUrl } from '../config/contact.js';
+import { useEnquiry } from '../context/EnquiryContext.jsx';
 import { useUserStore } from '../store/userStore.js';
 
 export default function ProductDetail() {
@@ -24,6 +24,7 @@ export default function ProductDetail() {
   const wishlist   = useWishlist(!!user);
   const addWish    = useAddToWishlist();
   const removeWish = useRemoveFromWishlist();
+  const { openEnquiry } = useEnquiry();
 
   // Fall back to the bundled mock while the request is in-flight or if it
   // errors (e.g. backend offline). Keeps the product page functional demo-mode.
@@ -139,14 +140,13 @@ export default function ProductDetail() {
           </p>
 
           <div className="mt-6 flex items-center gap-4">
-            <a
-              href={buildEnquiryUrl(product)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openEnquiry({ kind: 'product', product })}
               className="btn-primary px-7 py-3 rounded-full inline-flex items-center gap-2"
             >
               <MessageCircle className="w-4 h-4" /> Enquire on WhatsApp
-            </a>
+            </button>
             <button
               type="button"
               onClick={toggleWishlist}

@@ -461,27 +461,71 @@ async function updatePromotion(req, res) {
 // the admin panel always reads through its own JWT-protected axios instance.
 async function getBranding(req, res) {
   const existing = await Setting.findOne({ key: 'branding' });
-  if (existing) return res.json(existing);
+  if (existing) return res.json(enrichLegacySocials(existing));
   const created = await Setting.create({ key: 'branding' });
-  res.json(created);
+  res.json(enrichLegacySocials(created));
+}
+
+// Convert a legacy socials object ({ facebook: url, ... }) to the new
+// array shape. Any field that was left empty in the old shape is skipped.
+function normalizeSocialsInput(value) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((s) => s && typeof s === 'object')
+      .map((s) => ({
+        platform: String(s.platform || '').toLowerCase().trim(),
+        label:    String(s.label    || '').trim(),
+        url:      String(s.url      || '').trim(),
+      }))
+      .filter((s) => s.platform && s.url);
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, v]) => typeof v === 'string' && v.trim())
+      .map(([platform, url]) => ({
+        platform: String(platform).toLowerCase().trim(),
+        label:    '',
+        url:      String(url).trim(),
+      }));
+  }
+  return [];
 }
 
 // PUT /api/admin/settings — upsert the single branding doc. Accepts
-// logoUrl / faviconUrl / brandName / tagline and only touches whichever
-// are provided.
+// logoUrl / faviconUrl / brandName / tagline / phone / whatsappNumber /
+// email / socials and only touches whichever are provided.
 async function updateBranding(req, res) {
-  const { logoUrl, faviconUrl, brandName, tagline } = req.body || {};
+  const {
+    logoUrl, faviconUrl, brandName, tagline,
+    phone, whatsappNumber, email, socials,
+  } = req.body || {};
   const update = {};
-  if (typeof logoUrl    === 'string') update.logoUrl    = logoUrl;
-  if (typeof faviconUrl === 'string') update.faviconUrl = faviconUrl;
-  if (typeof brandName  === 'string') update.brandName  = brandName.trim();
-  if (typeof tagline    === 'string') update.tagline    = tagline.trim();
+  if (typeof logoUrl        === 'string') update.logoUrl        = logoUrl;
+  if (typeof faviconUrl     === 'string') update.faviconUrl     = faviconUrl;
+  if (typeof brandName      === 'string') update.brandName      = brandName.trim();
+  if (typeof tagline        === 'string') update.tagline        = tagline.trim();
+  if (typeof phone          === 'string') update.phone          = phone.trim();
+  if (typeof whatsappNumber === 'string') update.whatsappNumber = whatsappNumber.replace(/\D/g, '');
+  if (typeof email          === 'string') update.email          = email.trim();
+  if (socials !== undefined) update.socials = normalizeSocialsInput(socials);
   const doc = await Setting.findOneAndUpdate(
     { key: 'branding' },
     { $set: update, $setOnInsert: { key: 'branding' } },
     { new: true, upsert: true, runValidators: true },
   );
-  res.json(doc);
+  res.json(enrichLegacySocials(doc));
+}
+
+// Ensure responses always carry `socials` as an array, even for docs that
+// were saved under the old object shape. Keeps the frontend simple.
+function enrichLegacySocials(doc) {
+  if (!doc) return doc;
+  const obj = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  if (obj.socials && !Array.isArray(obj.socials)) {
+    obj.socials = normalizeSocialsInput(obj.socials);
+  }
+  if (!Array.isArray(obj.socials)) obj.socials = [];
+  return obj;
 }
 
 async function deletePromotion(req, res) {
